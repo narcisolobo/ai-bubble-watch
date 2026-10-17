@@ -24,7 +24,7 @@ One card per indicator, each showing:
 - Change over the indicator's comparison period (configured per indicator: e.g. 30/90 days for daily series, QoQ/YoY for quarterly ones)
 - A small trend chart (inline SVG sparkline)
 - Status, based on the indicator's thresholds: **normal**, **watch**, **alert**, or **no threshold set**
-- A **stale** flag when the as-of date is older than the indicator's `max_age`, and a separate **fetch failed** flag when the last refresh attempt failed
+- A **stale** flag when the as-of date is older than the indicator's `maxAgeDays`, and a separate **fetch failed** flag when the last refresh attempt failed
 - Source name with a link, and any attribution text the source requires
 
 ### 2. Summary bar
@@ -52,18 +52,18 @@ Each indicator is tagged with the risk scenario(s) it relates to. The page group
 
 ### 4. Configuration
 
-Indicators live in a single config file (not hard-coded). For each indicator:
+Indicators and scenarios live in one config file, [config/indicators.ts](../config/indicators.ts), not in code. It's a typed TypeScript object, so the type checker catches a misspelled field or scenario. The types, with a comment on every field, are in [src/schema.ts](../src/schema.ts). For each indicator:
 
-- `id`, `name`, `description`
-- `scenarios` (list of tags)
-- `source`: name, URL, `fetcher`, and `attribution` text if required
+- `id` (also the data file name), `name`, `description`
+- `scenarios` (list of scenario ids)
+- `source`: name, URL for the card link, `fetcher`, and `attribution` text if required
 - `license`: a short note on why public display is allowed (e.g. "US government work, public domain")
-- `metric`: what the displayed value and thresholds apply to, when it differs from the raw series (e.g. "trailing-four-quarter sum", "capex ÷ operating cash flow")
-- `units`
-- `frequency` (daily, monthly, quarterly) and `change_period`
-- `max_age`: how old the as-of date can be before the card is flagged stale
-- `thresholds`: `watch` and `alert` values plus `direction` (higher-is-worse or lower-is-worse). Optional; if absent, status is "no threshold set". A value at the threshold counts as crossing it.
-- `threshold_rationale`: one sentence, shown on the card, explaining where the thresholds come from. They are judgment calls, so the viewer should be able to see the reasoning.
+- `metric`: what the displayed value and thresholds apply to, when it differs from the raw series (e.g. "capex ÷ operating cash flow")
+- `units` and `decimals`; thresholds use the same units as the value
+- `frequency` (daily, monthly, quarterly) and `changePeriod` (`{ days }` or `{ points }`)
+- `maxAgeDays`: how old the latest point can be before the card is flagged stale
+- `notes`: caveats shown on the card
+- `thresholds`: `watch` and `alert` values, `direction` (higher-is-worse or lower-is-worse), and a one-sentence `rationale` shown on the card. Optional; if absent, status is "no threshold set". A value at the threshold counts as crossing it.
 
 Adding or removing an indicator should mean editing config plus, at most, writing one fetcher.
 
@@ -87,8 +87,8 @@ All three need no API key.
 - Companies and concepts:
   - MSFT, GOOGL, META, ORCL: `PaymentsToAcquirePropertyPlantAndEquipment`
   - AMZN: `PaymentsToAcquireProductiveAssets`
-- Displayed value: trailing-four-quarter total across the five companies, with a per-company breakdown.
-- Secondary metric: capex as a percentage of operating cash flow, as a proxy for "is spending outrunning what the business generates." All five companies use `NetCashProvidedByUsedInOperatingActivities`, with the same YTD rules as capex. Oracle's operating cash flow includes large customer prepayments for capex ($11.4B of $23.1B in Q1 FY27), which make its ratio look healthier. Note this on the card.
+- Displayed value: capex as a percentage of operating cash flow, as a proxy for "is spending outrunning what the business generates." The combined capex and cash flow dollar totals and a per-company breakdown are shown for context. All five companies use `NetCashProvidedByUsedInOperatingActivities`, with the same YTD rules as capex.
+- One point per calendar quarter end, using each company's latest fiscal quarter ending on or before it. A point appears once all five companies have filed for that quarter. Oracle's operating cash flow includes large customer prepayments for capex ($11.4B of $23.1B in Q1 FY27), which make its ratio look healthier. Note this on the card.
 - Rules:
   - Send a `User-Agent` header with contact info (requests without one get HTTP 403). Stay under 10 requests per second.
   - Identify periods by `start`/`end` dates only. The `fy`/`fp` fields describe the filing, not the period. Don't use the frames API.
@@ -103,7 +103,7 @@ All three need no API key.
 
 **2. 10-year Treasury yield** (daily, %)
 - Source: US Treasury daily yield curve CSV, column "10 Yr": `https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{YYYY}/all?type=daily_treasury_yield_curve&field_tdr_date_value={YYYY}&page&_format=csv`
-- No data on weekends or federal holidays, so set `max_age` to allow for that.
+- No data on weekends or federal holidays, so set `maxAgeDays` to allow for that.
 - Thresholds on the yield level, higher-is-worse, because higher rates raise borrowing costs for the buildout and pressure valuations.
   - **Watch ≥ 5.0%:** about the 90th percentile of daily values since 2000.
   - **Alert ≥ 5.5%:** above the 95th percentile since 2000. The yield hasn't reached 5.5% since May 2001. Its highest close since 2008 was 5.31%, on 2026-10-05.
@@ -125,10 +125,30 @@ All three need no API key.
 
 ### Storage
 
-- File-based, committed to the repo: one JSON file per indicator. Git history doubles as an audit trail.
-- Each data point records `observation_date` (or period start/end), `value`, `source_url`, and `fetched_at`.
-- Writes are keyed by observation date. A newer value for the same date replaces the old one, which handles revisions.
-- A failed fetch leaves the stored data untouched and records the failure (time, error) for the summary bar.
+- File-based, committed to the repo: one JSON file per indicator at `data/{id}.json`. Git history doubles as an audit trail. Types are `IndicatorData` and `Point` in [src/schema.ts](../src/schema.ts).
+- Each point records `date`, `value`, `sourceUrl`, and `fetchedAt`, plus optional `periodStart`, `secondary` series (e.g. EBP), and `breakdown` rows (e.g. per company). A period value is dated by its period's end, so September's GZ spread is `2026-09-30` with `periodStart` `2026-09-01`.
+- Each fetcher returns points and a write mode. `merge` upserts by `date`, so a newer value for the same date replaces the old one, which handles revisions. `replace` swaps in the whole history, for sources that revise all of it (the GZ spread).
+- Each file also records `lastSuccessAt` and `lastAttempt` (time, ok, error). A failed fetch updates only `lastAttempt`, so the last good points stay visible and the summary bar can list the failure.
+
+Example, abbreviated:
+
+```json
+{
+  "id": "gz-credit-spread",
+  "points": [
+    {
+      "date": "2026-09-30",
+      "periodStart": "2026-09-01",
+      "value": 0.93,
+      "secondary": { "ebp": -0.39 },
+      "sourceUrl": "https://www.federalreserve.gov/econres/notes/feds-notes/ebp_csv.csv",
+      "fetchedAt": "2026-10-17T11:17:04Z"
+    }
+  ],
+  "lastSuccessAt": "2026-10-17T11:17:04Z",
+  "lastAttempt": { "at": "2026-10-17T11:17:04Z", "ok": true }
+}
+```
 
 ## Refresh
 
@@ -179,7 +199,7 @@ All three need no API key.
 - [ ] Quarterly capex derived from YTD filings matches company-reported quarterly figures for at least one test case per company.
 - [ ] Scheduled refresh runs daily, builds, and deploys without manual action.
 - [ ] A failed fetch leaves the previous value visible, marked "fetch failed", and listed in the summary bar.
-- [ ] Data older than `max_age` is marked stale.
+- [ ] Data older than `maxAgeDays` is marked stale.
 - [ ] Scenarios without an indicator are listed on the page.
 - [ ] Page is usable on a phone and in dark mode.
 - [ ] Disclaimer footer is present.
