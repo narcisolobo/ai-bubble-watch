@@ -1,0 +1,76 @@
+{
+  "cik": 789019,
+  "taxonomy": "us-gaap",
+  "tag": "NetCashProvidedByUsedInOperatingActivities",
+  "label": "Net Cash Provided by (Used in) Operating Activities",
+  "description": "Amount of cash inflow (outflow) from operating activities, including discontinued operations. Operating activity cash flows include transactions, adjustments, and changes in value not defined as investing or financing activities.",
+  "entityName": "MICROSOFT CORPORATION",
+  "units": {
+    "USD": [
+      {
+        "start": "2025-07-01",
+        "end": "2025-09-30",
+        "val": 45057000000,
+        "accn": "0001193125-25-256321",
+        "fy": 2026,
+        "fp": "Q1",
+        "form": "10-Q",
+        "filed": "2025-10-29",
+        "frame": "CY2025Q3"
+      },
+      {
+        "start": "2025-07-01",
+        "end": "2025-12-31",
+        "val": 80815000000,
+        "accn": "0001193125-26-027207",
+        "fy": 2026,
+        "fp": "Q2",
+        "form": "10-Q",
+        "filed": "2026-01-28"
+      },
+      {
+        "start": "2025-10-01",
+        "end": "2025-12-31",
+        "val": 35758000000,
+        "accn": "0001193125-26-027207",
+        "fy": 2026,
+        "fp": "Q2",
+        "form": "10-Q",
+        "filed": "2026-01-28",
+        "frame": "CY2025Q4"
+      },
+      {
+        "start": "2025-07-01",
+        "end": "2026-03-31",
+        "val": 127494000000,
+        "accn": "0001193125-26-191507",
+        "fy": 2026,
+        "fp": "Q3",
+        "form": "10-Q",
+        "filed": "2026-04-29"
+      },
+      {
+        "start": "2026-01-01",
+        "end": "2026-03-31",
+        "val": 46679000000,
+        "accn": "0001193125-26-191507",
+        "fy": 2026,
+        "fp": "Q3",
+        "form": "10-Q",
+        "filed": "2026-04-29",
+        "frame": "CY2026Q1"
+      },
+      {
+        "start": "2025-07-01",
+        "end": "2026-06-30",
+        "val": 182935000000,
+        "accn": "0001193125-26-323660",
+        "fy": 2026,
+        "fp": "FY",
+        "form": "10-K",
+        "filed": "2026-07-29",
+        "frame": "CY2026"
+      }
+    ]
+  }
+}

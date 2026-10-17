@@ -1,0 +1,95 @@
+{
+  "cik": 1652044,
+  "taxonomy": "us-gaap",
+  "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+  "label": "Payments to Acquire Property, Plant, and Equipment",
+  "description": "The cash outflow associated with the acquisition of long-lived, physical assets that are used in the normal conduct of business to produce goods and services and not intended for resale; includes cash outflows to pay for construction of self-constructed assets.",
+  "entityName": "Alphabet Inc.",
+  "units": {
+    "USD": [
+      {
+        "start": "2025-01-01",
+        "end": "2025-03-31",
+        "val": 17197000000,
+        "accn": "0001652044-25-000043",
+        "fy": 2025,
+        "fp": "Q1",
+        "form": "10-Q",
+        "filed": "2025-04-25"
+      },
+      {
+        "start": "2025-01-01",
+        "end": "2025-03-31",
+        "val": 17197000000,
+        "accn": "0001652044-26-000048",
+        "fy": 2026,
+        "fp": "Q1",
+        "form": "10-Q",
+        "filed": "2026-04-30",
+        "frame": "CY2025Q1"
+      },
+      {
+        "start": "2025-01-01",
+        "end": "2025-06-30",
+        "val": 39643000000,
+        "accn": "0001652044-25-000062",
+        "fy": 2025,
+        "fp": "Q2",
+        "form": "10-Q",
+        "filed": "2025-07-24"
+      },
+      {
+        "start": "2025-01-01",
+        "end": "2025-06-30",
+        "val": 39643000000,
+        "accn": "0001652044-26-000071",
+        "fy": 2026,
+        "fp": "Q2",
+        "form": "10-Q",
+        "filed": "2026-07-23"
+      },
+      {
+        "start": "2025-01-01",
+        "end": "2025-09-30",
+        "val": 63596000000,
+        "accn": "0001652044-25-000091",
+        "fy": 2025,
+        "fp": "Q3",
+        "form": "10-Q",
+        "filed": "2025-10-30"
+      },
+      {
+        "start": "2025-01-01",
+        "end": "2025-12-31",
+        "val": 91447000000,
+        "accn": "0001652044-26-000018",
+        "fy": 2025,
+        "fp": "FY",
+        "form": "10-K",
+        "filed": "2026-02-05",
+        "frame": "CY2025"
+      },
+      {
+        "start": "2026-01-01",
+        "end": "2026-03-31",
+        "val": 35674000000,
+        "accn": "0001652044-26-000048",
+        "fy": 2026,
+        "fp": "Q1",
+        "form": "10-Q",
+        "filed": "2026-04-30",
+        "frame": "CY2026Q1"
+      },
+      {
+        "start": "2026-01-01",
+        "end": "2026-06-30",
+        "val": 80598000000,
+        "accn": "0001652044-26-000071",
+        "fy": 2026,
+        "fp": "Q2",
+        "form": "10-Q",
+        "filed": "2026-07-23"
+      }
+    ]
+  }
+}
