@@ -77,7 +77,7 @@ for (const { id } of indicators) {
     continue;
   }
   const status = card.match(/data-status="([^"]+)"/)[1];
-  const value = text(card.match(/<p><data [\s\S]*?<\/p>/)?.[0] ?? "no value");
+  const value = text(card.match(/<p data-reading>[\s\S]*?<\/p>/)?.[0] ?? "no value");
   const flags = [card.includes("data-stale") && "stale", card.includes("data-fetch-failed") && "fetch-failed"].filter(Boolean);
   console.log(`${status.padEnd(12)} ${id.padEnd(24)} ${value}${flags.length ? `  [${flags.join(", ")}]` : ""}`);
   if (status === "no-data") problems++;

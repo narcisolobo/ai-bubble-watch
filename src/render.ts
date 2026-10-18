@@ -3,6 +3,7 @@
 // See docs/spec.md, "Core Features", "Design", and "Stack".
 
 import type { IndicatorConfig, IndicatorData, Point, Scenario, Thresholds } from "./schema.ts";
+import { pageCss } from "./styles.ts";
 import { cardStatus, summarize, type CardStatus, type Status, type Summary } from "./status.ts";
 import {
   change,
@@ -90,6 +91,7 @@ export function renderPage(model: PageModel): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>AI Bubble Watch</title>
+<style>${pageCss}</style>
 </head>
 <body>
 <header>
@@ -116,7 +118,10 @@ ${model.uncovered.map((s) => `<li>${e(s.name)}</li>`).join("\n")}
 function renderBoard(cards: Card[]): string {
   const entries = cards.map(({ config, data, status }) => {
     const line = chart(config, data?.points ?? []);
-    const staff = line?.levels ? `<span data-staff${levelStyle(line.levels)}></span> ` : "";
+    const t = config.thresholds;
+    const ticks = t ? `<span data-tick="watch">${e(fmt(config, t.watch))}</span><span data-tick="alert">${e(fmt(config, t.alert))}</span>` : "";
+    // The staff repeats the chart in miniature, so screen readers skip it.
+    const staff = line?.levels ? `<span data-staff${levelStyle(line.levels)} aria-hidden="true">${ticks}</span> ` : "";
     const value = status.latest ? ` <data value="${status.latest.value}">${e(fmt(config, status.latest.value))}</data>` : "";
     const stage = status.status ? statusLabels[status.status] : "No data yet";
     return `<li data-status="${status.status ?? "no-data"}"><a href="#${e(config.id)}">${staff}<span>${e(config.name)}</span>${value} <strong>${stage}</strong></a></li>`;
@@ -171,7 +176,7 @@ function renderCard({ config, data, status }: Card): string {
   const points = data?.points ?? [];
   const flags = [status.stale ? "Stale" : "", status.fetchFailed ? "Fetch failed" : ""].filter(Boolean);
   const value = latest
-    ? `<p><data value="${latest.value}">${e(fmt(config, latest.value))}</data>, as of ${time(config, latest.date)}</p>`
+    ? `<p data-reading><data value="${latest.value}">${e(fmt(config, latest.value))}</data> <span>as of ${time(config, latest.date)}</span></p>`
     : "<p>No data yet</p>";
   const parts = [
     `<p>${e(config.description)}</p>`,
@@ -254,13 +259,18 @@ function renderSparkline(config: IndicatorConfig, points: Point[]): string {
     `low ${fmt(config, line.low)}, high ${fmt(config, line.high)}.` +
     (overlayLabel ? ` Second line: ${overlayLabel.toLowerCase()}.` : "") +
     (t ? ` ${thresholdText(config, t)}` : "");
+  const sign = t?.direction === "lower-is-worse" ? "≤" : "≥";
   const levelLabels = t
-    ? `\n<span data-level="watch">Watch ${e(fmt(config, t.watch))}</span>\n<span data-level="alert">Alert ${e(fmt(config, t.alert))}</span>`
+    ? `\n<span data-level="watch">Watch ${sign} ${e(fmt(config, t.watch))}</span>\n<span data-level="alert">Alert ${sign} ${e(fmt(config, t.alert))}</span>`
     : "";
+  // Placed by --latest, so only a chart with levels can put it beside its dot.
+  const latestLabel = line.levels ? `\n<span data-latest>${e(fmt(config, line.last.value))}</span>` : "";
   return `<figure data-chart${levelStyle(line.levels)}>
-<svg viewBox="0 0 ${sparklineWidth} ${sparklineHeight}" role="img" aria-label="${e(label)}">
+<svg viewBox="0 0 ${sparklineWidth} ${sparklineHeight}" preserveAspectRatio="none" role="img" aria-label="${e(label)}">
 ${rects.join("")}<path d="${line.main}" data-series="value"/>${line.overlay ? `\n<path d="${line.overlay}" data-series="${e(config.sparklineOverlay!)}"/>` : ""}
-</svg>${levelLabels}
+</svg>${levelLabels}${latestLabel}
+<span data-axis="start">${e(formatPeriod(line.first.date, config.frequency))}</span>
+<span data-axis="end">${e(formatPeriod(line.last.date, config.frequency))}</span>${overlayLabel ? `\n<span data-legend>Dashed line: ${e(overlayLabel.toLowerCase())}</span>` : ""}
 </figure>`;
 }
 

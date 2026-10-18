@@ -81,7 +81,7 @@ Without `DATA_DIR`, refresh writes into the repo's `data/`, which belongs to the
 ## Test
 
 ```bash
-npm test               # 75 tests
+npm test               # 87 tests
 npm run typecheck
 node --test test/status.test.ts   # one file
 ```
@@ -93,7 +93,7 @@ node --test test/status.test.ts   # one file
 - **Headless screenshots don't size to the content.** They're a fixed `--height`, and blank space below the footer is normal. Raise `--height` if the footer is cut off.
 - **`npm run refresh` exits 0 even when a fetcher fails.** That's deliberate: the page still deploys and shows the failure. Check the driver's per-card line for `[fetch-failed]`. Don't rely on the exit code.
 - **SEC returns HTTP 403 without a `User-Agent`.** That's why `SEC_USER_AGENT` is required for any refresh.
-- **Until CSS lands, the sparklines draw as solid black filled shapes.** A `<path>` with no fill/stroke styling defaults to a black fill, so this isn't a regression.
+- **The screenshots show every "How this is measured" panel closed.** To check the method content, rewrite `<details>` to `<details open>` in a copy of `dist/index.html` and screenshot that. Load the copy in a 390px `<iframe>` for the phone width.
 - **The 10-year yield's sparkline starts in Jan 2025.** The Treasury fetcher only downloads this year's and last year's files, and history builds up by merging.
 - **`CVDisplayLinkCreateWithCGDisplay failed` lines from Chrome are noise** in headless mode on macOS.
 - **The owner commits.** Leave changes uncommitted.

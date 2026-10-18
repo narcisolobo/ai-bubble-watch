@@ -202,12 +202,16 @@ test("renderPage's summary has a gauge board: one staff per indicator, on its ch
   const treasuryEntry = entries[1]!;
   assert.match(treasuryEntry, /^<li data-status="watch">/);
   assert.match(text(treasuryEntry), /10-year Treasury yield 5\.09% Watch/);
-  assert.match(treasuryEntry, /<span data-staff style="--watch:31\.03%;--alert:65\.52%;--latest:37\.24%"><\/span>/);
+  // Tick numerals at the stage edges; the staff repeats the chart, so screen readers skip it.
+  assert.match(
+    treasuryEntry,
+    /<span data-staff style="--watch:31\.03%;--alert:65\.52%;--latest:37\.24%" aria-hidden="true"><span data-tick="watch">5\.00%<\/span><span data-tick="alert">5\.50%<\/span><\/span>/,
+  );
 
   // Every staff carries the same levels as its card's chart.
   for (const [i, config] of indicators.entries()) {
     const chartStyle = element(html, "article", config.id).match(/<figure data-chart( style="[^"]*")>/)![1];
-    assert.ok(entries[i]!.includes(`<span data-staff${chartStyle}>`), config.id);
+    assert.ok(entries[i]!.includes(`<span data-staff${chartStyle} `), config.id);
   }
   assert.match(text(board), /Scale matches the chart below\./);
 });
@@ -224,16 +228,33 @@ test("renderPage's gauge board shows a missing or thresholdless indicator in wor
   for (const entry of [capexEntry!, treasuryEntry!]) assert.doesNotMatch(entry, /data-staff/);
 });
 
+test("renderPage marks up each card's reading and chart ends for styling", () => {
+  const card = element(page(), "article", "treasury-10y");
+
+  // The value and its date as separate parts, with no comma to strand.
+  assert.match(card, /<p data-reading><data value="5\.09">5\.09%<\/data> <span>as of <time datetime="2026-10-16">Oct 16, 2026<\/time><\/span><\/p>/);
+  // The chart stretches to whatever height CSS gives it, and names its first and last dates.
+  assert.match(card, /<svg viewBox="0 0 120 32" preserveAspectRatio="none" role="img"/);
+  assert.match(card, /<span data-axis="start">Jul 17, 2026<\/span>\s*<span data-axis="end">Oct 16, 2026<\/span>/);
+  assert.doesNotMatch(card, /data-legend/);
+
+  // A second line says what it is on screen, not only in the aria-label.
+  const gzFigure = element(page(), "article", "gz-credit-spread").match(/<figure[\s\S]*?<\/figure>/)![0];
+  assert.match(gzFigure, /<span data-legend>Dashed line: excess bond premium<\/span>/);
+});
+
 test("renderPage puts the alert stage at the bottom when lower is worse", () => {
   // Watch 4.8, alert 4.6: the scale runs from 4.6 − 0.2 = 4.4 to the high 5.10
   // (span 0.7). Alert at 0.2 / 0.7 = 0.2857 → y 22.86; watch at 0.4 / 0.7 = 0.5714 → y 13.72.
   const base = indicators.find((i) => i.id === "treasury-10y")!;
   const lower = { ...base, thresholds: { ...base.thresholds!, watch: 4.8, alert: 4.6, direction: "lower-is-worse" as const } };
 
-  const svg = element(page({ [treasury.id]: treasury }, [lower]), "article", "treasury-10y").match(/<svg[\s\S]*?<\/svg>/)![0];
+  const figure = element(page({ [treasury.id]: treasury }, [lower]), "article", "treasury-10y").match(/<figure[\s\S]*?<\/figure>/)![0];
 
-  assert.match(svg, /<rect data-stage="alert" x="0" y="22\.86" width="120" height="9\.14"\/>/);
-  assert.match(svg, /<rect data-stage="watch" x="0" y="13\.72" width="120" height="9\.14"\/>/);
+  assert.match(figure, /<rect data-stage="alert" x="0" y="22\.86" width="120" height="9\.14"\/>/);
+  assert.match(figure, /<rect data-stage="watch" x="0" y="13\.72" width="120" height="9\.14"\/>/);
+  assert.match(figure, /<span data-level="watch">Watch ≤ 4\.80%<\/span>/);
+  assert.match(figure, /<span data-level="alert">Alert ≤ 4\.60%<\/span>/);
 });
 
 test("renderPage draws no stages or levels for an indicator with no thresholds", () => {
@@ -254,8 +275,10 @@ test("renderPage wraps each chart with its levels as CSS properties and labels t
 
   assert.match(figure, /^<figure data-chart style="--watch:31\.03%;--alert:65\.52%;--latest:37\.24%">/);
   assert.match(figure, /<svg[\s\S]*<\/svg>/);
-  assert.match(figure, /<span data-level="watch">Watch 5\.00%<\/span>/);
-  assert.match(figure, /<span data-level="alert">Alert 5\.50%<\/span>/);
+  assert.match(figure, /<span data-level="watch">Watch ≥ 5\.00%<\/span>/);
+  assert.match(figure, /<span data-level="alert">Alert ≥ 5\.50%<\/span>/);
+  // The latest reading, labelled where the line ends.
+  assert.match(figure, /<span data-latest>5\.09%<\/span>/);
 });
 
 test("renderPage keeps each card's scan layer visible and puts the method behind a disclosure", () => {
