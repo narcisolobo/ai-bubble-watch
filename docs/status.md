@@ -24,7 +24,7 @@ All three v1 fetchers are registered in `src/fetchers/index.ts`; the `notBuilt` 
 
 What still blocks v1, and what doesn't, is listed in [v1-ship.md](v1-ship.md).
 
-1. **Scheduled workflow**: `.github/workflows/refresh.yml`. A single job runs refresh, commits `data/`, builds, and deploys to GitHub Pages, all in one workflow. It runs on a cron off the hour (e.g. `17 11 * * *`) and also allows `workflow_dispatch`. It needs a `timeout-minutes` limit and an `SEC_USER_AGENT` repository secret. The spec's Refresh section explains why it's one job.
+1. **Scheduled workflow** (written 2026-10-18, uncommitted and not yet run; the owner has added the `SEC_USER_AGENT` secret, and still needs to enable Pages with "GitHub Actions" as the source, commit, push, and trigger `workflow_dispatch`): `.github/workflows/refresh.yml`. A single job runs refresh, commits `data/`, builds, and deploys to GitHub Pages, all in one workflow. It runs on a cron off the hour (e.g. `17 11 * * *`) and also allows `workflow_dispatch`. It needs a `timeout-minutes` limit and an `SEC_USER_AGENT` repository secret. The spec's Refresh section explains why it's one job.
    - The owner creates the secret and enables Pages; ask them to do this. The remote is `github.com/narcisolobo/ai-bubble-watch`.
 
 ## Open decisions (the owner's call)

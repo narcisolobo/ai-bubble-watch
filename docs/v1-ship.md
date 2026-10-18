@@ -6,27 +6,27 @@ As of 2026-10-18. Checked against the acceptance criteria in [spec.md](spec.md#a
 
 One acceptance criterion is open: **scheduled refresh runs daily, builds, and deploys without manual action.**
 
-- [ ] **Write `.github/workflows/refresh.yml`** (agent). One job: run the refresh, commit `data/`, build, deploy to GitHub Pages. It has to be one job: a push made with `GITHUB_TOKEN` doesn't trigger other workflows ([spec, Refresh](spec.md#refresh)).
+- [x] **Write `.github/workflows/refresh.yml`** (agent). One job: run the refresh, commit `data/`, build, deploy to GitHub Pages. It has to be one job: a push made with `GITHUB_TOKEN` doesn't trigger other workflows ([spec, Refresh](spec.md#refresh)).
   - Cron off the hour, e.g. `17 11 * * *`, plus `workflow_dispatch` for manual runs.
   - A `timeout-minutes` limit.
   - Reads `SEC_USER_AGENT` from a repository secret.
-- [ ] **Add the `SEC_USER_AGENT` repository secret** (owner) on `github.com/narcisolobo/ai-bubble-watch`, e.g. `AI Bubble Watch you@example.com`. SEC returns 403 without it.
+- [x] **Add the `SEC_USER_AGENT` repository secret** (owner) on `github.com/narcisolobo/ai-bubble-watch`, e.g. `AI Bubble Watch you@example.com`. SEC returns 403 without it.
 - [ ] **Enable GitHub Pages** (owner) with "GitHub Actions" as the source.
 - [ ] **First run, then check the live page** (agent and owner). `data/` isn't in the repo yet; the first run creates and commits it. Until then the page has only been built from scratch data, so "builds from the committed data" is unchecked.
 
 ## Met
 
-| Criterion | Evidence |
-| --- | --- |
-| Three indicators show value, date, trend, source, attribution | All three cards, checked in a browser 2026-10-18 |
-| Indicators and thresholds in config | `config/indicators.ts` |
-| Status correct at and around thresholds, both directions | `test/status.test.ts` |
+| Criterion                                                              | Evidence                                                                                                      |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Three indicators show value, date, trend, source, attribution          | All three cards, checked in a browser 2026-10-18                                                              |
+| Indicators and thresholds in config                                    | `config/indicators.ts`                                                                                        |
+| Status correct at and around thresholds, both directions               | `test/status.test.ts`                                                                                         |
 | Quarterly capex matches company-reported figures, one case per company | `test/sec-capex.test.ts`: Oracle and Amazon each have their own test; Alphabet, Microsoft, and Meta share one |
-| Failed fetch keeps the last value, marked and listed in the summary | `test/status.test.ts`, `test/render.test.ts` |
-| Data older than `maxAgeDays` marked stale | `test/status.test.ts` |
-| Scenarios without an indicator listed | `test/render.test.ts`; on the page |
-| Usable on a phone and in dark mode | Checked at 390 and 1280 wide, light and dark; finish review verdict: ship |
-| Disclaimer footer present | `test/render.test.ts` |
+| Failed fetch keeps the last value, marked and listed in the summary    | `test/status.test.ts`, `test/render.test.ts`                                                                  |
+| Data older than `maxAgeDays` marked stale                              | `test/status.test.ts`                                                                                         |
+| Scenarios without an indicator listed                                  | `test/render.test.ts`; on the page                                                                            |
+| Usable on a phone and in dark mode                                     | Checked at 390 and 1280 wide, light and dark; finish review verdict: ship                                     |
+| Disclaimer footer present                                              | `test/render.test.ts`                                                                                         |
 
 ## Not blocking: your calls
 
