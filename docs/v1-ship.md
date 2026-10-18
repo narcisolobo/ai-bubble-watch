@@ -4,15 +4,15 @@ As of 2026-10-18. Checked against the acceptance criteria in [spec.md](spec.md#a
 
 ## Blocking
 
-One acceptance criterion is open: **scheduled refresh runs daily, builds, and deploys without manual action.**
+Nothing blocks v1. The last criterion, **scheduled refresh runs daily, builds, and deploys without manual action**, was met by the first run on 2026-10-18. Still to confirm: the next scheduled (not manual) run fires.
 
 - [x] **Write `.github/workflows/refresh.yml`** (agent). One job: run the refresh, commit `data/`, build, deploy to GitHub Pages. It has to be one job: a push made with `GITHUB_TOKEN` doesn't trigger other workflows ([spec, Refresh](spec.md#refresh)).
   - Cron off the hour, e.g. `17 11 * * *`, plus `workflow_dispatch` for manual runs.
   - A `timeout-minutes` limit.
   - Reads `SEC_USER_AGENT` from a repository secret.
 - [x] **Add the `SEC_USER_AGENT` repository secret** (owner) on `github.com/narcisolobo/ai-bubble-watch`, e.g. `AI Bubble Watch you@example.com`. SEC returns 403 without it.
-- [ ] **Enable GitHub Pages** (owner) with "GitHub Actions" as the source.
-- [ ] **First run, then check the live page** (agent and owner). `data/` isn't in the repo yet; the first run creates and commits it. Until then the page has only been built from scratch data, so "builds from the committed data" is unchecked.
+- [x] **Enable GitHub Pages** (owner) with "GitHub Actions" as the source.
+- [x] **First run, then check the live page** (agent and owner). `data/` isn't in the repo yet; the first run creates and commits it. Until then the page has only been built from scratch data, so "builds from the committed data" is unchecked.
 
 ## Met
 

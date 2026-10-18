@@ -1,6 +1,6 @@
 # Project status
 
-As of 2026-10-18, through page styling. Update this file when you finish a step.
+As of 2026-10-18, v1 is live at https://narcisolobo.github.io/ai-bubble-watch/. Update this file when you finish a step.
 
 The spec is [docs/spec.md](spec.md). Design and copy guidance is in [PRODUCT.md](../PRODUCT.md). Source licensing and API research is in [docs/research/data-sources.md](research/data-sources.md).
 
@@ -17,15 +17,13 @@ The spec is [docs/spec.md](spec.md). Design and copy guidance is in [PRODUCT.md]
 | Status logic            | `src/status.ts`                                | `thresholdStatus`, `cardStatus`, `summarize`. Compares the value rounded to `decimals`, so the shown number and status agree. A card with no points has `status: null`, is stale, and isn't counted                                                                                                                                                                                         |
 | Page markup             | `src/view.ts`, `src/render.ts`, `src/build.ts` | `npm run build` writes `dist/index.html` (`DATA_DIR`/`DIST_DIR` override). Semantic HTML: a section per scenario, an `<article>` per card, `data-status`/`data-stale`/`data-fetch-failed` hooks for CSS. A source's `attribution`, when set, replaces the "Source: name." line as the link text (owner's decision) |
 | Page styling            | `src/styles.ts`, `src/render.ts`, `DESIGN.md`  | "River Gauge" direction (contract in `.impeccable/surfaces/src-render-ts.md`; system in `DESIGN.md`). One inline stylesheet, `pageCss`. Gauge board, stage bands, method in `<details>`. Checked in a browser 2026-10-18 at 390 and 1280 wide, light and dark; the finish review's verdict was ship |
+| Scheduled workflow      | `.github/workflows/refresh.yml`                | Daily at 11:17 UTC and on `workflow_dispatch`. One job: typecheck, test, refresh, commit `data/` to `main`, build, deploy to Pages. First run 2026-10-18 created `data/` and deployed; all three cards live, none failed |
 
 All three v1 fetchers are registered in `src/fetchers/index.ts`; the `notBuilt` placeholder is gone.
 
-## Next, in order
+## Next
 
-What still blocks v1, and what doesn't, is listed in [v1-ship.md](v1-ship.md).
-
-1. **Scheduled workflow** (written 2026-10-18, uncommitted and not yet run; the owner has added the `SEC_USER_AGENT` secret, and still needs to enable Pages with "GitHub Actions" as the source, commit, push, and trigger `workflow_dispatch`): `.github/workflows/refresh.yml`. A single job runs refresh, commits `data/`, builds, and deploys to GitHub Pages, all in one workflow. It runs on a cron off the hour (e.g. `17 11 * * *`) and also allows `workflow_dispatch`. It needs a `timeout-minutes` limit and an `SEC_USER_AGENT` repository secret. The spec's Refresh section explains why it's one job.
-   - The owner creates the secret and enables Pages; ask them to do this. The remote is `github.com/narcisolobo/ai-bubble-watch`.
+Nothing blocks v1. After launch: confirm the next scheduled run fires, push a commit at least every 60 days (see [v1-ship.md](v1-ship.md)), and review thresholds after a couple of months of live data.
 
 ## Open decisions (the owner's call)
 
@@ -54,5 +52,4 @@ What still blocks v1, and what doesn't, is listed in [v1-ship.md](v1-ship.md).
   - The gauge staff's gradient and the chart's latest-point dot assume higher-is-worse, which every v1 indicator is. Only the SVG bands handle both directions.
   - On phone the staff is 64px tall, so the tick numerals touch if an indicator's watch band is under about 18% of its chart's range.
   - The design detector flags the tick numerals as low-contrast and cramped, because it measures them against the staff they sit inside in the markup. CSS moves them off the staff onto the page background. The finish reviewer confirmed these are false positives.
-  - The page has only been built from scratch data, since `data/` isn't committed yet. The scheduled workflow will create it.
 - **FRED** isn't used anywhere: its terms forbid storing its data, and the useful series are copyrighted. Get public-domain data from the original government source instead.
