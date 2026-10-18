@@ -39,6 +39,12 @@ export const indicators: IndicatorConfig[] = [
       "Oracle's operating cash flow includes large customer prepayments for capex, which lowers its ratio.",
       "Fiscal years differ: Microsoft's ends in June, Oracle's in May.",
     ],
+    // No sparklineYears: the whole history starts in 2018.
+    fields: {
+      capex: { label: "Capex", units: "USD", decimals: 1 },
+      ocf: { label: "Operating cash flow", units: "USD", decimals: 1 },
+      ratio: { label: "Capex ÷ cash flow", units: "%", decimals: 1 },
+    },
     thresholds: {
       direction: "higher-is-worse",
       watch: 75,
@@ -66,6 +72,8 @@ export const indicators: IndicatorConfig[] = [
     // No data on weekends or federal holidays; a holiday next to a weekend
     // can leave five days between observations and the daily run.
     maxAgeDays: 6,
+    // Two years of daily values; more makes a cluttered line.
+    sparklineYears: 2,
     thresholds: {
       direction: "higher-is-worse",
       watch: 5.0,
@@ -97,6 +105,12 @@ export const indicators: IndicatorConfig[] = [
     // point can be about 37 days old before the next one appears.
     maxAgeDays: 45,
     notes: ["The Fed can revise the whole history each month."],
+    // Back to 1973 would flatten recent moves.
+    sparklineYears: 10,
+    sparklineOverlay: "ebp",
+    fields: {
+      ebp: { label: "Excess bond premium", units: "%", decimals: 2 },
+    },
     thresholds: {
       direction: "higher-is-worse",
       watch: 2.0,

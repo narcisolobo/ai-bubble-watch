@@ -8,6 +8,7 @@
   },
   "scripts": {
     "refresh": "node src/refresh.ts",
+    "build": "node src/build.ts",
     "test": "node --test",
     "typecheck": "tsc --noEmit"
   },

@@ -50,8 +50,24 @@ export interface IndicatorConfig {
   maxAgeDays: number;
   /** Card caveats, shown as short notes. */
   notes?: string[];
+  /** Years of history the sparkline shows, back from the latest point. Absent means all. */
+  sparklineYears?: number;
+  /** A `secondary` series drawn as a second sparkline line, on the same scale as `value`. */
+  sparklineOverlay?: string;
+  /**
+   * Labels and formats for the values in `secondary` and `breakdown`, keyed
+   * by name. The card shows them in this order; a key not listed isn't shown.
+   */
+  fields?: Record<string, FieldFormat>;
   /** Absent means status "no threshold set". */
   thresholds?: Thresholds;
+}
+
+export interface FieldFormat {
+  label: string;
+  /** "%" or "USD"; see formatValue in src/view.ts. */
+  units: string;
+  decimals: number;
 }
 
 export interface Thresholds {
