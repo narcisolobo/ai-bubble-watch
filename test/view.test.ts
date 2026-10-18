@@ -106,6 +106,8 @@ test("sparkline scales the window's low to the bottom and its high to the top", 
   assert.equal(result.main, "M0,32L60,0L120,16");
   assert.deepEqual([result.low, result.high], [1, 3]);
   assert.deepEqual([result.first.date, result.last.date], ["2026-01-31", "2026-03-31"]);
+  // Without thresholds there are no stage levels to draw.
+  assert.equal(result.levels, undefined);
 });
 
 test("sparkline draws a flat series as a line across the middle", () => {
@@ -135,6 +137,50 @@ test("sparkline draws an overlay series on the same scale as the main one", () =
   assert.deepEqual([result.low, result.high], [1, 3]);
   assert.equal(result.main, "M0,16L60,0L120,8");
   assert.equal(result.overlay, "M0,32L60,24L120,16");
+});
+
+test("sparkline widens its scale to the thresholds, with the alert stage as tall as the watch stage", () => {
+  // Watch 4, alert 5: the scale runs from the low (1) to 5 + (5 − 4) = 6.
+  const points = [at("2026-01-31", 1), at("2026-02-28", 3), at("2026-03-31", 2)];
+
+  const result = sparkline(points, { thresholds: { watch: 4, alert: 5, direction: "higher-is-worse" } })!;
+
+  assert.equal(result.main, "M0,32L60,19.2L120,25.6");
+  assert.deepEqual(result.levels, { watch: 0.6, alert: 0.8, latest: 0.2 });
+  assert.deepEqual([result.low, result.high], [1, 3]);
+});
+
+test("sparkline keeps the data's high when it rises past the alert stage", () => {
+  // The high (7) is above 5 + (5 − 4) = 6, so the scale runs from 1 to 7.
+  const points = [at("2026-01-31", 1), at("2026-02-28", 7), at("2026-03-31", 2)];
+
+  const result = sparkline(points, { thresholds: { watch: 4, alert: 5, direction: "higher-is-worse" } })!;
+
+  assert.equal(result.main, "M0,32L60,0L120,26.67");
+  assert.deepEqual(result.levels, { watch: 0.5, alert: 0.6667, latest: 0.1667 });
+});
+
+test("sparkline puts the alert stage below the watch stage when lower is worse", () => {
+  // Watch 2, alert 1: the scale runs from 1 − (2 − 1) = 0 up to the high (5).
+  const points = [at("2026-01-31", 3), at("2026-02-28", 5), at("2026-03-31", 4)];
+
+  const result = sparkline(points, { thresholds: { watch: 2, alert: 1, direction: "lower-is-worse" } })!;
+
+  assert.equal(result.main, "M0,12.8L60,0L120,6.4");
+  assert.deepEqual(result.levels, { watch: 0.4, alert: 0.2, latest: 0.8 });
+});
+
+test("sparkline puts the overlay and the thresholds on one scale", () => {
+  // GZ spread thresholds (watch 2, alert 3) take the top to 4; the EBP's −1
+  // takes the bottom to −1.
+  const withEbp = (date: string, value: number, ebp: number): Point => ({ ...at(date, value), secondary: { ebp } });
+  const points = [withEbp("2026-07-31", 1, -1), withEbp("2026-08-31", 2, 0), withEbp("2026-09-30", 1, 0)];
+
+  const result = sparkline(points, { overlay: "ebp", thresholds: { watch: 2, alert: 3, direction: "higher-is-worse" } })!;
+
+  assert.equal(result.main, "M0,19.2L60,12.8L120,19.2");
+  assert.equal(result.overlay, "M0,32L60,25.6L120,25.6");
+  assert.deepEqual(result.levels, { watch: 0.6, alert: 0.8, latest: 0.4 });
 });
 
 test("sparkline is null with fewer than two points to draw", () => {

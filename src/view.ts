@@ -1,7 +1,7 @@
 // Pure helpers for the page build: escaping, formatting, change, sparklines,
 // and scenario grouping. See docs/spec.md, "Core Features" and "Stack".
 
-import type { IndicatorConfig, Point, Scenario } from "./schema.ts";
+import type { IndicatorConfig, Point, Scenario, Thresholds } from "./schema.ts";
 
 export interface ScenarioGroup {
   scenario: Scenario;
@@ -96,15 +96,25 @@ export interface Sparkline {
   high: number;
   first: Point;
   last: Point;
+  /**
+   * Where the thresholds and the latest value sit, as fractions of the
+   * height from the bottom (0 to 1). Only when thresholds were passed.
+   */
+  levels?: { watch: number; alert: number; latest: number };
 }
 
 /**
  * Path data for the trend line. Points are spaced by index, not by date, so
  * weekends and holidays don't leave flat gaps. `years` keeps only the
  * window back from the latest date; `overlay` names a `secondary` series
- * drawn on the same scale. Null when there are fewer than two points.
+ * drawn on the same scale. `thresholds` widen the scale to take in both
+ * levels and an alert stage as tall as the watch stage, so the stages can
+ * be drawn behind the line. Null when there are fewer than two points.
  */
-export function sparkline(points: Point[], options: { years?: number; overlay?: string }): Sparkline | null {
+export function sparkline(
+  points: Point[],
+  options: { years?: number; overlay?: string; thresholds?: Omit<Thresholds, "rationale"> },
+): Sparkline | null {
   let window = points;
   const latest = points.at(-1);
   if (latest && options.years !== undefined) {
@@ -117,9 +127,14 @@ export function sparkline(points: Point[], options: { years?: number; overlay?: 
 
   const main = window.map((p) => p.value);
   const overlay = options.overlay ? window.map((p) => p.secondary?.[options.overlay!] ?? Number.NaN) : undefined;
-  const all = [...main, ...(overlay ?? [])].filter(Number.isFinite);
+  const t = options.thresholds;
+  // Past the alert level by the watch stage's height, on whichever side is worse.
+  const stages = t ? [t.watch, t.alert, t.alert + (t.alert - t.watch)] : [];
+  const all = [...main, ...(overlay ?? []), ...stages].filter(Number.isFinite);
   const bottom = Math.min(...all);
   const top = Math.max(...all);
+  // Finer than the path's rounding, so bands drawn from levels meet the line at any height.
+  const fraction = (value: number) => Number(((value - bottom) / (top - bottom)).toFixed(4));
   const step = sparklineWidth / (window.length - 1);
   const y = (value: number) =>
     top === bottom ? sparklineHeight / 2 : sparklineHeight - ((value - bottom) / (top - bottom)) * sparklineHeight;
@@ -133,6 +148,7 @@ export function sparkline(points: Point[], options: { years?: number; overlay?: 
     high: Math.max(...main),
     first: window[0]!,
     last: window.at(-1)!,
+    ...(t ? { levels: { watch: fraction(t.watch), alert: fraction(t.alert), latest: fraction(main.at(-1)!) } } : {}),
   };
 }
 
