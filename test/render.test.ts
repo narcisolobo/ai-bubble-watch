@@ -164,7 +164,7 @@ test("renderPage shows each card's description, change, trend, thresholds, notes
   // Treasury: 5.09 − 4.55 against Jul 17, the newest point 90+ days back.
   const treasuryCard = element(html, "article", "treasury-10y");
   assert.match(text(treasuryCard), /\+0\.54 pp since Jul 17, 2026/);
-  assert.match(treasuryCard, /<svg [^>]*role="img"[^>]*aria-label="Trend from Jul 17, 2026 to Oct 16, 2026: low 4\.55%, high 5\.10%\."/);
+  assert.match(treasuryCard, /<svg [^>]*role="img"[^>]*aria-label="Trend from Jul 17, 2026 to Oct 16, 2026: low 4\.55%, high 5\.10%\. Watch at 5\.00% or above\. Alert at 5\.50% or above\."/);
 
   // GZ: the required attribution, the EBP, and its overlay line. Three
   // monthly points can't show a three-month change.
@@ -175,6 +175,114 @@ test("renderPage shows each card's description, change, trend, thresholds, notes
   assert.match(text(gzCard), /Excess bond premium −0\.39%/);
   assert.equal(gzCard.match(/<path /g)?.length, 2);
   assert.match(text(gzCard), /Not enough history yet for a change over 3 months\./);
+});
+
+// Treasury's chart: data 4.55 to 5.10, watch 5.0, alert 5.5, so the scale runs
+// from 4.55 to 5.5 + 0.5 = 6.0 (span 1.45). In the 120 × 32 viewBox, y = 0 is
+// the top: alert at 0.95 / 1.45 = 0.6552 → y 11.03; watch at 0.45 / 1.45 = 0.3103 → y 22.07.
+
+test("renderPage draws each chart's watch and alert stages behind its line", () => {
+  const svg = element(page(), "article", "treasury-10y").match(/<svg[\s\S]*?<\/svg>/)![0];
+
+  assert.match(svg, /<rect data-stage="alert" x="0" y="0" width="120" height="11\.03"\/>/);
+  assert.match(svg, /<rect data-stage="watch" x="0" y="11\.03" width="120" height="11\.04"\/>/);
+  assert.ok(svg.indexOf("<rect") < svg.indexOf("<path"), "stages come before the line");
+});
+
+test("renderPage's summary has a gauge board: one staff per indicator, on its chart's scale", () => {
+  const html = page();
+  const board = element(element(html, "section", "summary"), "figure", "gauges");
+  const entries = board.match(/<li[\s\S]*?<\/li>/g)!;
+
+  // In config order, each linking to its card.
+  assert.deepEqual(
+    entries.map((li) => li.match(/href="#([^"]+)"/)![1]),
+    indicators.map((i) => i.id),
+  );
+  const treasuryEntry = entries[1]!;
+  assert.match(treasuryEntry, /^<li data-status="watch">/);
+  assert.match(text(treasuryEntry), /10-year Treasury yield 5\.09% Watch/);
+  assert.match(treasuryEntry, /<span data-staff style="--watch:31\.03%;--alert:65\.52%;--latest:37\.24%"><\/span>/);
+
+  // Every staff carries the same levels as its card's chart.
+  for (const [i, config] of indicators.entries()) {
+    const chartStyle = element(html, "article", config.id).match(/<figure data-chart( style="[^"]*")>/)![1];
+    assert.ok(entries[i]!.includes(`<span data-staff${chartStyle}>`), config.id);
+  }
+  assert.match(text(board), /Scale matches the chart below\./);
+});
+
+test("renderPage's gauge board shows a missing or thresholdless indicator in words, with no staff", () => {
+  const { thresholds: _, ...noThresholds } = indicators.find((i) => i.id === "treasury-10y")!;
+  const config = indicators.map((i) => (i.id === "treasury-10y" ? noThresholds : i));
+
+  const board = element(page({ [treasury.id]: treasury, [gz.id]: gz }, config), "figure", "gauges"); // no capex file yet
+  const [capexEntry, treasuryEntry] = board.match(/<li[\s\S]*?<\/li>/g)!;
+
+  assert.match(text(capexEntry!), /Hyperscaler capex vs\. operating cash flow No data yet/);
+  assert.match(text(treasuryEntry!), /10-year Treasury yield 5\.09% No threshold set/);
+  for (const entry of [capexEntry!, treasuryEntry!]) assert.doesNotMatch(entry, /data-staff/);
+});
+
+test("renderPage puts the alert stage at the bottom when lower is worse", () => {
+  // Watch 4.8, alert 4.6: the scale runs from 4.6 − 0.2 = 4.4 to the high 5.10
+  // (span 0.7). Alert at 0.2 / 0.7 = 0.2857 → y 22.86; watch at 0.4 / 0.7 = 0.5714 → y 13.72.
+  const base = indicators.find((i) => i.id === "treasury-10y")!;
+  const lower = { ...base, thresholds: { ...base.thresholds!, watch: 4.8, alert: 4.6, direction: "lower-is-worse" as const } };
+
+  const svg = element(page({ [treasury.id]: treasury }, [lower]), "article", "treasury-10y").match(/<svg[\s\S]*?<\/svg>/)![0];
+
+  assert.match(svg, /<rect data-stage="alert" x="0" y="22\.86" width="120" height="9\.14"\/>/);
+  assert.match(svg, /<rect data-stage="watch" x="0" y="13\.72" width="120" height="9\.14"\/>/);
+});
+
+test("renderPage draws no stages or levels for an indicator with no thresholds", () => {
+  const { thresholds: _, ...base } = indicators.find((i) => i.id === "treasury-10y")!;
+
+  const figure = element(page({ [treasury.id]: treasury }, [base]), "article", "treasury-10y").match(/<figure[\s\S]*?<\/figure>/)![0];
+
+  assert.match(figure, /^<figure data-chart>/);
+  assert.doesNotMatch(figure, /<rect|data-level/);
+  assert.match(figure, /aria-label="Trend from Jul 17, 2026 to Oct 16, 2026: low 4\.55%, high 5\.10%\."/);
+  // The full range of the data: 4.55 at the bottom, 5.10 at the top.
+  assert.match(figure, /d="M0,32L60,0L120,0\.58"/);
+});
+
+test("renderPage wraps each chart with its levels as CSS properties and labels the thresholds", () => {
+  // Latest 5.09: 0.54 / 1.45 = 0.3724.
+  const figure = element(page(), "article", "treasury-10y").match(/<figure[\s\S]*?<\/figure>/)![0];
+
+  assert.match(figure, /^<figure data-chart style="--watch:31\.03%;--alert:65\.52%;--latest:37\.24%">/);
+  assert.match(figure, /<svg[\s\S]*<\/svg>/);
+  assert.match(figure, /<span data-level="watch">Watch 5\.00%<\/span>/);
+  assert.match(figure, /<span data-level="alert">Alert 5\.50%<\/span>/);
+});
+
+test("renderPage keeps each card's scan layer visible and puts the method behind a disclosure", () => {
+  const html = page();
+
+  for (const config of indicators) {
+    const card = element(html, "article", config.id);
+    const details = card.match(/<details>\s*<summary>How this is measured<\/summary>[\s\S]*<\/details>/)?.[0];
+    assert.ok(details, `${config.id} has the disclosure`);
+    const outside = card.replace(details, "");
+
+    // Inside: the thresholds and why, the caveats, and the license.
+    assert.ok(text(details).includes(config.thresholds!.rationale), `${config.id} rationale`);
+    for (const note of config.notes ?? []) assert.ok(text(details).includes(note), `${config.id} note`);
+    assert.ok(text(details).includes(config.license), `${config.id} license`);
+
+    // Outside: what a scan needs, and the source.
+    assert.ok(text(outside).includes(config.description), `${config.id} description`);
+    assert.match(outside, /<data value=[\s\S]*Status:[\s\S]*<figure data-chart/);
+    assert.match(outside, new RegExp(`<footer>[\\s\\S]*<a href="${config.source.url.replaceAll("?", "\\?")}">`));
+    assert.doesNotMatch(outside, /<dl>|<table>/);
+  }
+
+  // The capex card's per-company table and totals are in the method too.
+  const capexDetails = element(html, "article", "hyperscaler-capex-ratio").match(/<details>[\s\S]*<\/details>/)![0];
+  assert.match(capexDetails, /<table>/);
+  assert.match(text(capexDetails), /Capex \$566\.4B/);
 });
 
 test("renderPage escapes every config and data string it inserts", () => {

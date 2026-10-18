@@ -2,7 +2,7 @@
 // document. No CSS yet: the markup is semantic, with data-* hooks for styling.
 // See docs/spec.md, "Core Features", "Design", and "Stack".
 
-import type { IndicatorConfig, IndicatorData, Point, Scenario } from "./schema.ts";
+import type { IndicatorConfig, IndicatorData, Point, Scenario, Thresholds } from "./schema.ts";
 import { cardStatus, summarize, type CardStatus, type Status, type Summary } from "./status.ts";
 import {
   change,
@@ -16,6 +16,7 @@ import {
   sparklineWidth,
   escapeHtml as e,
   type ScenarioGroup,
+  type Sparkline,
 } from "./view.ts";
 
 export interface Card {
@@ -26,6 +27,8 @@ export interface Card {
 
 export interface PageModel {
   summary: Summary;
+  /** Every card, in config order, for the gauge board. */
+  cards: Card[];
   groups: (Omit<ScenarioGroup, "indicators"> & { cards: Card[] })[];
   uncovered: Scenario[];
   /** Names by indicator id, for the summary's lists. */
@@ -55,6 +58,7 @@ export function buildModel(input: {
         card: status,
       })),
     ),
+    cards: [...cards.values()],
     groups: groups.map(({ indicators, ...group }) => ({ ...group, cards: indicators.map((i) => cards.get(i.id)!) })),
     uncovered,
     names: new Map(input.indicators.map((i) => [i.id, i.name])),
@@ -109,7 +113,23 @@ ${model.uncovered.map((s) => `<li>${e(s.name)}</li>`).join("\n")}
 `;
 }
 
-function renderSummary({ summary, names }: PageModel): string {
+function renderBoard(cards: Card[]): string {
+  const entries = cards.map(({ config, data, status }) => {
+    const line = chart(config, data?.points ?? []);
+    const staff = line?.levels ? `<span data-staff${levelStyle(line.levels)}></span> ` : "";
+    const value = status.latest ? ` <data value="${status.latest.value}">${e(fmt(config, status.latest.value))}</data>` : "";
+    const stage = status.status ? statusLabels[status.status] : "No data yet";
+    return `<li data-status="${status.status ?? "no-data"}"><a href="#${e(config.id)}">${staff}<span>${e(config.name)}</span>${value} <strong>${stage}</strong></a></li>`;
+  });
+  return `<figure id="gauges">
+<ul>
+${entries.join("\n")}
+</ul>
+<figcaption>Scale matches the chart below.</figcaption>
+</figure>`;
+}
+
+function renderSummary({ summary, names, cards }: PageModel): string {
   const counts = (Object.keys(statusLabels) as Status[])
     .map((status) => `<li><data value="${summary.counts[status]}">${summary.counts[status]}</data> ${e(statusLabels[status].toLowerCase())}</li>`)
     .join("\n");
@@ -128,6 +148,7 @@ ${counts}
 </ul>
 <p>Last successful refresh: ${refreshed}</p>
 ${problems.length ? problems.join("\n") : "<p>All indicators updated on schedule.</p>"}
+${renderBoard(cards)}
 </section>`;
 }
 
@@ -159,16 +180,28 @@ function renderCard({ config, data, status }: Card): string {
     flags.length ? `<ul>\n${flags.map((f) => `<li>${f}</li>`).join("\n")}\n</ul>` : "",
     latest ? renderChange(config, points) : "",
     renderSparkline(config, points),
-    renderDetails(config),
-    latest ? renderSecondary(config, latest) : "",
-    latest ? renderBreakdown(config, latest) : "",
-    config.notes?.length ? `<ul>\n${config.notes.map((n) => `<li>${e(n)}</li>`).join("\n")}\n</ul>` : "",
+    renderMethod(config, latest),
     renderSource(config),
   ];
   return `<article id="${id}" aria-labelledby="${id}-heading" data-status="${status.status ?? "no-data"}"${status.stale ? " data-stale" : ""}${status.fetchFailed ? " data-fetch-failed" : ""}>
 <h3 id="${id}-heading">${e(config.name)}</h3>
 ${parts.filter(Boolean).join("\n")}
 </article>`;
+}
+
+/** What a skeptic needs, one tap away: thresholds and why, totals, the per-company table, caveats, license. */
+function renderMethod(config: IndicatorConfig, latest: Point | null): string {
+  const parts = [
+    renderDetails(config),
+    latest ? renderSecondary(config, latest) : "",
+    latest ? renderBreakdown(config, latest) : "",
+    config.notes?.length ? `<ul>\n${config.notes.map((n) => `<li>${e(n)}</li>`).join("\n")}\n</ul>` : "",
+    `<p>License: ${e(config.license)}</p>`,
+  ];
+  return `<details>
+<summary>How this is measured</summary>
+${parts.filter(Boolean).join("\n")}
+</details>`;
 }
 
 function fmt(config: IndicatorConfig, value: number): string {
@@ -193,20 +226,60 @@ function renderChange(config: IndicatorConfig, points: Point[]): string {
   return `<p>Not enough history yet for a change over ${period}.</p>`;
 }
 
-function renderSparkline(config: IndicatorConfig, points: Point[]): string {
-  const line = sparkline(points, {
+/** A card's chart. The gauge board uses it too, so a staff and its chart share one scale. */
+function chart(config: IndicatorConfig, points: Point[]): Sparkline | null {
+  return sparkline(points, {
     ...(config.sparklineYears !== undefined ? { years: config.sparklineYears } : {}),
     ...(config.sparklineOverlay ? { overlay: config.sparklineOverlay } : {}),
+    ...(config.thresholds ? { thresholds: config.thresholds } : {}),
   });
+}
+
+function renderSparkline(config: IndicatorConfig, points: Point[]): string {
+  const t = config.thresholds;
+  const line = chart(config, points);
   if (!line) return "";
+  // Each stage runs from its level to the next one, or to the chart's edge on the worse side.
+  const stages = t && line.levels ? [
+    ["alert", line.levels.alert, t.direction === "higher-is-worse" ? 1 : 0],
+    ["watch", line.levels.watch, line.levels.alert],
+  ] as const : [];
+  const rects = stages.map(
+    ([stage, a, b]) =>
+      `<rect data-stage="${stage}" x="0" y="${svgRound(sparklineHeight * (1 - Math.max(a, b)))}" width="${sparklineWidth}" height="${svgRound(sparklineHeight * Math.abs(a - b))}"/>\n`,
+  );
   const overlayLabel = config.sparklineOverlay ? config.fields?.[config.sparklineOverlay]?.label : undefined;
   const label =
     `Trend from ${formatPeriod(line.first.date, config.frequency)} to ${formatPeriod(line.last.date, config.frequency)}: ` +
     `low ${fmt(config, line.low)}, high ${fmt(config, line.high)}.` +
-    (overlayLabel ? ` Second line: ${overlayLabel.toLowerCase()}.` : "");
-  return `<svg viewBox="0 0 ${sparklineWidth} ${sparklineHeight}" role="img" aria-label="${e(label)}">
-<path d="${line.main}" data-series="value"/>${line.overlay ? `\n<path d="${line.overlay}" data-series="${e(config.sparklineOverlay!)}"/>` : ""}
-</svg>`;
+    (overlayLabel ? ` Second line: ${overlayLabel.toLowerCase()}.` : "") +
+    (t ? ` ${thresholdText(config, t)}` : "");
+  const levelLabels = t
+    ? `\n<span data-level="watch">Watch ${e(fmt(config, t.watch))}</span>\n<span data-level="alert">Alert ${e(fmt(config, t.alert))}</span>`
+    : "";
+  return `<figure data-chart${levelStyle(line.levels)}>
+<svg viewBox="0 0 ${sparklineWidth} ${sparklineHeight}" role="img" aria-label="${e(label)}">
+${rects.join("")}<path d="${line.main}" data-series="value"/>${line.overlay ? `\n<path d="${line.overlay}" data-series="${e(config.sparklineOverlay!)}"/>` : ""}
+</svg>${levelLabels}
+</figure>`;
+}
+
+/** The levels as CSS properties, percentages from the bottom, for the chart's labels and dot and the gauge staff. */
+function levelStyle(levels: Sparkline["levels"]): string {
+  if (!levels) return "";
+  const pct = (f: number) => `${(f * 100).toFixed(2)}%`;
+  return ` style="--watch:${pct(levels.watch)};--alert:${pct(levels.alert)};--latest:${pct(levels.latest)}"`;
+}
+
+/** "Watch at 5.00% or above. Alert at 5.50% or above." Unescaped. */
+function thresholdText(config: IndicatorConfig, t: Thresholds): string {
+  const side = t.direction === "higher-is-worse" ? "or above" : "or below";
+  return `Watch at ${fmt(config, t.watch)} ${side}. Alert at ${fmt(config, t.alert)} ${side}.`;
+}
+
+/** SVG coordinates to two decimals, as the sparkline paths are. */
+function svgRound(n: number): number {
+  return Number(n.toFixed(2));
 }
 
 function renderDetails(config: IndicatorConfig): string {
@@ -214,8 +287,7 @@ function renderDetails(config: IndicatorConfig): string {
   if (config.metric) rows.push(["Metric", e(config.metric)]);
   const t = config.thresholds;
   if (t) {
-    const side = t.direction === "higher-is-worse" ? "or above" : "or below";
-    rows.push(["Thresholds", `Watch at ${e(fmt(config, t.watch))} ${side}. Alert at ${e(fmt(config, t.alert))} ${side}.`]);
+    rows.push(["Thresholds", e(thresholdText(config, t))]);
     rows.push(["Why these thresholds", e(t.rationale)]);
   } else {
     rows.push(["Thresholds", "None set."]);
@@ -261,6 +333,5 @@ function renderSource(config: IndicatorConfig): string {
     : `Source: <a href="${e(source.url)}">${e(source.name)}</a>.`;
   return `<footer>
 <p>${line}</p>
-<p>License: ${e(config.license)}</p>
 </footer>`;
 }
