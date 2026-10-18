@@ -27,7 +27,7 @@ All three v1 fetchers are registered in `src/fetchers/index.ts`; the `notBuilt` 
    - Each chart draws its stage bands and keeps its own time span, labelled at both ends. This changes `sparkline()` in `src/view.ts`: draw the thresholds and include them in the y-range. Test-first; propose seams first.
    - The always-visible scan layer: name, description, value, as-of date, stage, change, chart, source link. Thresholds and their rationale, caveats, the per-company table, and the license go in a native `<details>` ("How this is measured"). No JS.
    - Avoid: trading terminal, doom/alarm, SaaS template, academic paper.
-   - Next session: write the direction contract into a surface brief (`impeccable surface-brief write`; seed reference `seed:edf0a0f6ddf731be`), then build.
+   - The direction contract is in `.impeccable/surfaces/src-render-ts.md` (gitignored, local only). Next: propose test seams for the `sparkline()` threshold change, then build.
    - Done when it builds from the committed data, works at phone width and in dark mode, and every acceptance criterion in the spec that's about the page is met. Check it in a browser: the markup has only been read as HTML so far.
 2. **Scheduled workflow**: `.github/workflows/refresh.yml`. A single job runs refresh, commits `data/`, builds, and deploys to GitHub Pages, all in one workflow. It runs on a cron off the hour (e.g. `17 11 * * *`) and also allows `workflow_dispatch`. It needs a `timeout-minutes` limit and an `SEC_USER_AGENT` repository secret. The spec's Refresh section explains why it's one job.
    - The owner creates the secret and enables Pages; ask them to do this. The remote is `github.com/narcisolobo/ai-bubble-watch`.
