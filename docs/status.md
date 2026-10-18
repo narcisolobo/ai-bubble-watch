@@ -1,29 +1,28 @@
 # Project status
 
-As of 2026-10-18, through the SEC capex fetcher. Update this file when you finish a step.
+As of 2026-10-18, through the status logic. Update this file when you finish a step.
 
 The spec is [docs/spec.md](spec.md). Design and copy guidance is in [PRODUCT.md](../PRODUCT.md). Source licensing and API research is in [docs/research/data-sources.md](research/data-sources.md).
 
 ## Done
 
-| Piece                   | Code                                    | Notes                                                                                                                                                                                 |
-| ----------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Config and data formats | `src/schema.ts`, `config/indicators.ts` | Three v1 indicators, thresholds with rationale, staleness limits                                                                                                                      |
-| Store                   | `src/store.ts`                          | `applySuccess` (merge/replace), `applyFailure`, `readData`/`writeData`. Refuses empty results; never overwrites a corrupt file                                                        |
-| Refresh loop            | `src/run.ts`, `src/refresh.ts`          | `npm run refresh`. One failing fetcher doesn't stop the others. Exits 0 on fetch failures so the page still deploys                                                                   |
-| SEC capex fetcher       | `src/fetchers/sec-capex.ts`             | `fetchConcept`, `toQuarters`, `capexRatio`, `capexHistory`, `secCapex`. Registered and checked live 2026-10-18 (33 points, 2018-06-30 to 2026-06-30, latest 81.8%). `mode: "replace"` |
-| Treasury fetcher        | `src/fetchers/treasury-yield.ts`        | Registered and checked live (448 points)                                                                                                                                              |
-| Fed GZ spread fetcher   | `src/fetchers/fed-gz-spread.ts`         | Registered and checked live 2026-10-18 (645 points, 1973-01 to 2026-09). `mode: "replace"`. Values are stored at full precision; `decimals` rounds for display                        |
+| Piece                   | Code                                    | Notes                                                                                                                                                                                               |
+| ----------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Config and data formats | `src/schema.ts`, `config/indicators.ts` | Three v1 indicators, thresholds with rationale, staleness limits                                                                                                                                    |
+| Store                   | `src/store.ts`                          | `applySuccess` (merge/replace), `applyFailure`, `readData`/`writeData`. Refuses empty results; never overwrites a corrupt file                                                                      |
+| Refresh loop            | `src/run.ts`, `src/refresh.ts`          | `npm run refresh`. One failing fetcher doesn't stop the others. Exits 0 on fetch failures so the page still deploys                                                                                 |
+| SEC capex fetcher       | `src/fetchers/sec-capex.ts`             | `fetchConcept`, `toQuarters`, `capexRatio`, `capexHistory`, `secCapex`. Registered and checked live 2026-10-18 (33 points, 2018-06-30 to 2026-06-30, latest 81.8%). `mode: "replace"`               |
+| Treasury fetcher        | `src/fetchers/treasury-yield.ts`        | Registered and checked live (448 points)                                                                                                                                                            |
+| Fed GZ spread fetcher   | `src/fetchers/fed-gz-spread.ts`         | Registered and checked live 2026-10-18 (645 points, 1973-01 to 2026-09). `mode: "replace"`. Values are stored at full precision; `decimals` rounds for display                                      |
+| Status logic            | `src/status.ts`                         | `thresholdStatus`, `cardStatus`, `summarize`. Compares the value rounded to `decimals`, so the shown number and status agree. A card with no points has `status: null`, is stale, and isn't counted |
 
 All three v1 fetchers are registered in `src/fetchers/index.ts`; the `notBuilt` placeholder is gone.
 
 ## Next, in order
 
-1. **Status logic**: a pure function from a config and data file to the card status (normal / watch / alert / no threshold set) plus the stale and fetch-failed flags, and the summary-bar counts.
-   - Done when unit tests cover values exactly at, just below and just above each threshold, in both directions, and the boundaries of `maxAgeDays`.
-2. **Page build**: `src/build.ts` writes `dist/index.html` with inline CSS and inline SVG sparklines, per the spec's Design and Stack sections and PRODUCT.md. Run every inserted value through one HTML-escape helper.
+1. **Page build**: `src/build.ts` writes `dist/index.html` with inline CSS and inline SVG sparklines, per the spec's Design and Stack sections and PRODUCT.md. Run every inserted value through one HTML-escape helper. Format values with `toFixed(decimals)`, the same rounding `thresholdStatus` uses, and show a `status: null` card as "no data yet" rather than as a status.
    - Done when it builds from the committed data, works at phone width and in dark mode, and every acceptance criterion in the spec that's about the page is met.
-3. **Scheduled workflow**: `.github/workflows/refresh.yml`. A single job runs refresh, commits `data/`, builds, and deploys to GitHub Pages, all in one workflow. It runs on a cron off the hour (e.g. `17 11 * * *`) and also allows `workflow_dispatch`. It needs a `timeout-minutes` limit and an `SEC_USER_AGENT` repository secret. The spec's Refresh section explains why it's one job.
+2. **Scheduled workflow**: `.github/workflows/refresh.yml`. A single job runs refresh, commits `data/`, builds, and deploys to GitHub Pages, all in one workflow. It runs on a cron off the hour (e.g. `17 11 * * *`) and also allows `workflow_dispatch`. It needs a `timeout-minutes` limit and an `SEC_USER_AGENT` repository secret. The spec's Refresh section explains why it's one job.
    - The owner creates the secret and enables Pages; ask them to do this. The remote is `github.com/narcisolobo/ai-bubble-watch`.
 
 ## Open decisions (the owner's call)
