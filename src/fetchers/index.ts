@@ -3,17 +3,11 @@
 
 import type { Fetcher, FetcherId } from "../schema.ts";
 import { fedGzSpread } from "./fed-gz-spread.ts";
+import { secCapex } from "./sec-capex.ts";
 import { treasuryYield } from "./treasury-yield.ts";
 
-/** Placeholder until the fetcher exists; run() records the error as a failed fetch. */
-function notBuilt(id: FetcherId): Fetcher {
-  return async () => {
-    throw new Error(`${id} fetcher not built yet`);
-  };
-}
-
 export const fetchers: Record<FetcherId, Fetcher> = {
-  "sec-capex": notBuilt("sec-capex"),
+  "sec-capex": secCapex,
   "treasury-yield": treasuryYield,
   "fed-gz-spread": fedGzSpread,
 };
